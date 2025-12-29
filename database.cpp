@@ -47,3 +47,35 @@ bool Database::createTables()
     qDebug() << "学生表创建成功";
     return true;
 }
+
+
+
+QVector<QMap<QString, QVariant>> Database::getAllStudents()
+{
+    QVector<QMap<QString, QVariant>> students;
+
+    // 检查数据库是否打开
+    if (!db.isOpen()) {
+        qDebug() << "数据库未打开";
+        return students;
+    }
+
+    QSqlQuery query("SELECT * FROM students ORDER BY class, stu_id");
+
+    if (!query.exec()) {
+        qDebug() << "查询失败：" << query.lastError().text();
+        return students;
+    }
+
+    while (query.next()) {
+        QMap<QString, QVariant> student;
+        student["id"] = query.value("id");
+        student["stu_id"] = query.value("stu_id");
+        student["name"] = query.value("name");
+        student["class"] = query.value("class");
+        students.append(student);
+    }
+
+    qDebug() << "查询到" << students.size() << "名学生";
+    return students;
+}
