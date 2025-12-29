@@ -1,14 +1,15 @@
 #include "mainwindow.h"
-#include <QLabel>
-#include "ui_mainwindow.h"  // 添加这行
+#include "ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)  // 初始化ui指针
+    , ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);  // 设置UI
+    ui->setupUi(this);
 }
+
 
 MainWindow::~MainWindow()
 {
+    delete ui;
 }
