@@ -31,6 +31,19 @@ bool Database::openDatabase()
 
 bool Database::createTables()
 {
+    QSqlQuery query;
 
+    QString createTableSQL = "CREATE TABLE IF NOT EXISTS students ("
+                             "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                             "stu_id TEXT UNIQUE NOT NULL,"
+                             "name TEXT NOT NULL,"
+                             "class TEXT NOT NULL);";
+
+    if (!query.exec(createTableSQL)) {
+        qDebug() << "创建表失败:" << query.lastError().text();
+        return false;
+    }
+
+    qDebug() << "学生表创建成功";
     return true;
 }

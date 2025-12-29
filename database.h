@@ -26,3 +26,5 @@ private:
 };
 
 #endif // DATABASE_H
+
+bool addStudent(const QString &stuId, const QString &name, const QString &className);
