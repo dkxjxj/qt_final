@@ -8,11 +8,13 @@ SOURCES += \
     database.cpp \
     main.cpp \
     mainwindow.cpp \
+    studentmodel.cpp
 
 
 HEADERS += \
     database.h \
     mainwindow.h \
+    studentmodel.h
 
 
 FORMS += \
