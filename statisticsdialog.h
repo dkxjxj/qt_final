@@ -3,19 +3,8 @@
 
 #include <QDialog>
 #include "database.h"
-
-// Qt 6中Charts模块的包含方式
-#include <QChart>
-#include <QChartView>
-#include <QBarSeries>
-#include <QBarSet>
-#include <QLineSeries>
-#include <QPieSeries>
-#include <QValueAxis>
-#include <QBarCategoryAxis>
-
-// 在Qt 6中，不需要 using namespace
-// 也不需要 QT_CHARTS_USE_NAMESPACE
+#include <QTableWidget>
+#include <QWidget>
 
 namespace Ui {
 class StatisticsDialog;
@@ -30,34 +19,28 @@ public:
     ~StatisticsDialog();
 
 private slots:
-    void updateCharts();
     void on_subjectCombo_currentIndexChanged(int index);
     void on_classList_currentTextChanged(const QString &currentText);
 
 private:
-    void setupCharts();
-    void updateSubjectStats();
-    void updateClassStats();
-    void updateDistributionChart();
-    void updateTrendChart();
-    void updateStatsPanel(const QString &className = "");
+    void initializeWidgets();
+    void updateAllData();
     void updateClassList();
+    void updateStatsPanel(const QString &className = "");
+    void updateSubjectData();
+    void updateClassData();
+    void updateDistributionData();
+    void updateTrendData();
+
+    // 新增函数：简化班级名称
+    QString simplifyClassName(const QString &className);
 
     Ui::StatisticsDialog *ui;
     Database *database;
-
-    // 直接使用类型，不需要前缀
-    QChart *subjectChart;
-    QChartView *subjectChartView;
-
-    QChart *classChart;
-    QChartView *classChartView;
-
-    QChart *distributionChart;
-    QChartView *distributionChartView;
-
-    QChart *trendChart;
-    QChartView *trendChartView;
+    QTableWidget *subjectTable;
+    QTableWidget *classTable;
+    QWidget *distributionWidget;
+    QWidget *trendWidget;
 };
 
 #endif // STATISTICSDIALOG_H
