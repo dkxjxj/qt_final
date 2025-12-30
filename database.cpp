@@ -132,3 +132,31 @@ QVector<QMap<QString, QVariant>> Database::searchStudents(const QString &keyword
     qDebug() << "搜索到" << students.size() << "名学生";
     return students;
 }
+
+bool Database::deleteStudent(const QString &stuId)
+{
+    QSqlQuery query;
+    query.prepare("DELETE FROM students WHERE stu_id = ?");
+    query.addBindValue(stuId);
+
+    if (!query.exec()) {
+        qDebug() << "删除失败:" << query.lastError().text();
+        return false;
+    }
+
+    qDebug() << "删除学生:" << stuId;
+    return query.numRowsAffected() > 0;
+}
+
+bool Database::isStudentExist(const QString &stuId)
+{
+    QSqlQuery query;
+    query.prepare("SELECT COUNT(*) FROM students WHERE stu_id = ?");
+    query.addBindValue(stuId);
+
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt() > 0;
+    }
+
+    return false;
+}

@@ -30,6 +30,9 @@ public:
 
     bool deleteStudent(const QString &stuId);
     bool isStudentExist(const QString &stuId);
+    bool deleteStudent(const QString &stuId);
+    bool isStudentExist(const QString &stuId);
+
 
     QVector<QMap<QString, QVariant>> getAllStudents();
     QVector<QMap<QString, QVariant>> searchStudents(const QString &keyword);
