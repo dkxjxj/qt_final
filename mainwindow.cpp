@@ -99,3 +99,22 @@ void MainWindow::on_actionDelete_triggered()
         }
     }
 }
+
+
+void MainWindow::on_searchButton_clicked()
+{
+    QString keyword = ui->searchEdit->text().trimmed();
+    if (keyword.isEmpty()) {
+        loadStudentData();
+        return;
+    }
+
+    QVector<QMap<QString, QVariant>> students = db.searchStudents(keyword);
+    studentModel->setData(students);
+}
+
+void MainWindow::on_clearButton_clicked()
+{
+    ui->searchEdit->clear();
+    loadStudentData();
+}
