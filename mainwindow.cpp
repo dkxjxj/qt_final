@@ -147,3 +147,14 @@ void MainWindow::on_actionDelete_triggered()
         }
     }
 }
+
+void MainWindow::on_actionRefresh_triggered()
+{
+    loadStudentData();
+    QMessageBox::information(this, "提示", "数据已刷新！");
+}
+
+void MainWindow::on_actionExit_triggered()
+{
+    close();
+}
