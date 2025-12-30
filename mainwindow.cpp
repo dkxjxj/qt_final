@@ -72,3 +72,30 @@ void MainWindow::on_actionAdd_triggered()
         loadStudentData();  // 刷新数据
     }
 }
+
+void MainWindow::on_actionDelete_triggered()
+{
+    // 获取选中行
+    QModelIndexList selected = ui->tableView->selectionModel()->selectedRows();
+    if (selected.isEmpty()) {
+        QMessageBox::warning(this, "警告", "请选择要删除的学生！");
+        return;
+    }
+
+    int row = selected.first().row();
+    QMap<QString, QVariant> student = studentModel->getStudent(row);
+
+    // 确认对话框
+    int ret = QMessageBox::question(this, "确认删除",
+                                    QString("确定要删除学生 %1 吗？").arg(student["name"].toString()),
+                                    QMessageBox::Yes | QMessageBox::No);
+
+    if (ret == QMessageBox::Yes) {
+        if (db.deleteStudent(student["stu_id"].toString())) {
+            loadStudentData();
+            QMessageBox::information(this, "成功", "删除成功！");
+        } else {
+            QMessageBox::critical(this, "错误", "删除失败！");
+        }
+    }
+}

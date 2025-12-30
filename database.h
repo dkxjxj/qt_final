@@ -28,6 +28,9 @@ public:
     bool updateStudent(const QString &stuId, const QString &name, const QString &className,
                        double chinese, double math, double english);
 
+    bool deleteStudent(const QString &stuId);
+    bool isStudentExist(const QString &stuId);
+
     QVector<QMap<QString, QVariant>> getAllStudents();
 private:
     QSqlDatabase db;
