@@ -37,7 +37,15 @@ bool Database::createTables()
                              "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                              "stu_id TEXT UNIQUE NOT NULL,"
                              "name TEXT NOT NULL,"
-                             "class TEXT NOT NULL);";
+                             "class TEXT NOT NULL,"
+                             "chinese REAL DEFAULT -1,"       // 添加语文成绩字段
+                             "math REAL DEFAULT -1,"         // 添加数学成绩字段
+                             "english REAL DEFAULT -1,"      // 添加英语成绩字段
+                             "total REAL GENERATED ALWAYS AS ("  // 添加总分计算字段
+                             "  CASE WHEN chinese >= 0 THEN chinese ELSE 0 END +"
+                             "  CASE WHEN math >= 0 THEN math ELSE 0 END +"
+                             "  CASE WHEN english >= 0 THEN english ELSE 0 END"
+                             ") VIRTUAL);";
 
     if (!query.exec(createTableSQL)) {
         qDebug() << "创建表失败:" << query.lastError().text();

@@ -21,9 +21,13 @@ public:
     bool openDatabase();
     bool createTables();
 
+    bool addStudent(const QString &stuId, const QString &name, const QString &className,
+                    double chinese, double math, double english);
 
-    bool addStudent(const QString &stuId, const QString &name, const QString &className);
-    // 在database.h的public部分添加：
+    // 添加更新学生方法
+    bool updateStudent(const QString &stuId, const QString &name, const QString &className,
+                       double chinese, double math, double english);
+
     QVector<QMap<QString, QVariant>> getAllStudents();
 private:
     QSqlDatabase db;
