@@ -15,7 +15,6 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
-    <!-- 第19次提交：添加搜索功能 -->
     <item>
      <widget class="QGroupBox" name="searchGroup">
       <property name="title">
@@ -53,28 +52,11 @@
       </layout>
      </widget>
     </item>
-
-    <!-- 表格区域 -->
     <item>
-     <widget class="QTableView" name="tableView">
-      <property name="alternatingRowColors">
-       <bool>true</bool>
-      </property>
-      <property name="selectionMode">
-       <enum>QAbstractItemView::SingleSelection</enum>
-      </property>
-      <property name="selectionBehavior">
-       <enum>QAbstractItemView::SelectRows</enum>
-      </property>
-      <property name="sortingEnabled">
-       <bool>true</bool>
-      </property>
-     </widget>
+     <widget class="QTableView" name="tableView"/>
     </item>
    </layout>
   </widget>
-
-  <!-- 菜单栏 -->
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
@@ -89,41 +71,65 @@
      <string>文件</string>
     </property>
     <addaction name="actionAdd"/>
+    <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
      <string>编辑</string>
     </property>
-    <addaction name="actionDelete"/>
     <addaction name="actionRefresh"/>
+    <addaction name="actionDelete"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>查看</string>
+    </property>
+    <addaction name="actionStatistics"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menuView"/>
   </widget>
-
-  <!-- 状态栏 -->
   <widget class="QStatusBar" name="statusbar"/>
-
-  <!-- 动作定义 -->
   <action name="actionAdd">
    <property name="text">
     <string>添加学生</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
    </property>
   </action>
   <action name="actionExit">
    <property name="text">
     <string>退出</string>
    </property>
-  </action>
-  <action name="actionDelete">
-   <property name="text">
-    <string>删除学生</string>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
   <action name="actionRefresh">
    <property name="text">
     <string>刷新</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="actionDelete">
+   <property name="text">
+    <string>删除学生</string>
+   </property>
+   <property name="shortcut">
+    <string>Delete</string>
+   </property>
+  </action>
+  <action name="actionStatistics">
+   <property name="text">
+    <string>统计分析</string>
+   </property>
+   <property name="shortcut">
+    <string>F2</string>
    </property>
   </action>
  </widget>
