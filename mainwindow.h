@@ -17,8 +17,16 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-private slots:  // 添加这行
-    void on_actionAdd_triggered();  // 添加这行
+private slots:
+    // 菜单栏动作
+    void on_actionAdd_triggered();
+    void on_actionDelete_triggered();
+    void on_actionRefresh_triggered();
+    void on_actionExit_triggered();
+
+    // 工具栏按钮
+    void on_searchButton_clicked();
+    void on_clearButton_clicked();
 
 private:
     Ui::MainWindow *ui;
