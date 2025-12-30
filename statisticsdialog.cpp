@@ -2,43 +2,47 @@
 #include "ui_statisticsdialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QHeaderView>
-#include <QProgressBar>
 #include <QLabel>
 #include <QDebug>
 #include <QMessageBox>
-#include <QTimer>
-#include <QApplication>
+#include <QColor>
+#include <QTableWidgetItem>
+#include <algorithm>
 
 StatisticsDialog::StatisticsDialog(QWidget *parent, Database *db)
     : QDialog(parent)
     , ui(new Ui::StatisticsDialog)
     , database(db)
-    , subjectTable(nullptr)
     , classTable(nullptr)
-    , distributionWidget(nullptr)
     , trendWidget(nullptr)
 {
+    // 先检查数据库
     if (!database) {
         QMessageBox::critical(parent, "错误", "数据库连接无效！");
         return;
     }
 
-    ui->setupUi(this);
-    setWindowTitle("成绩统计分析");
-    setMinimumSize(1000, 600);
+    try {
+        ui->setupUi(this);
+        setWindowTitle("成绩统计分析");
+        setMinimumSize(800, 600);
 
-    // 设置科目下拉框
-    ui->subjectCombo->addItems({"语文", "数学", "英语"});
+        // 只初始化有数据的控件
+        setupWidgets();
 
-    // 延迟初始化，确保UI加载完成
-    QTimer::singleShot(100, this, [this]() {
-        qDebug() << "=== 开始初始化 ===";
-        initializeWidgets();
-        updateClassList();  // 从数据库获取班级列表
-        updateAllData();    // 从数据库获取所有数据
-        qDebug() << "=== 初始化完成 ===";
-    });
+        // 连接信号槽
+        connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &StatisticsDialog::reject);
+
+        // 初始化数据
+        updateClassList();
+        updateAllData();
+
+    } catch (const std::exception &e) {
+        QMessageBox::critical(this, "初始化错误",
+                              QString("对话框初始化失败：%1\n请检查数据库连接和数据。").arg(e.what()));
+    }
 }
 
 StatisticsDialog::~StatisticsDialog()
@@ -46,546 +50,223 @@ StatisticsDialog::~StatisticsDialog()
     delete ui;
 }
 
-void StatisticsDialog::initializeWidgets()
+void StatisticsDialog::setupWidgets()
 {
-    qDebug() << "正在初始化控件...";
+    // 1. 班级对比表格（有数据）
+    classTable = new QTableWidget();
+    classTable->setColumnCount(5);
+    QStringList classHeaders = {"班级", "语文", "数学", "英语", "总分"};
+    classTable->setHorizontalHeaderLabels(classHeaders);
+    classTable->verticalHeader()->setVisible(false);
+    classTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    classTable->setStyleSheet("QTableWidget { font-size: 12pt; }");
 
-    // 1. 科目统计表格
-    if (!subjectTable && ui->subjectGroup) {
-        subjectTable = new QTableWidget(this);
-        subjectTable->setColumnCount(4);
-        subjectTable->setHorizontalHeaderLabels(QStringList() << "班级" << "平均分" << "及格率" << "人数");
-        subjectTable->verticalHeader()->setVisible(false);
-        subjectTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        subjectTable->setMinimumHeight(200);
+    QVBoxLayout *layout1 = new QVBoxLayout(ui->classGroup);
+    layout1->addWidget(classTable);
 
-        if (!ui->subjectGroup->layout()) {
-            ui->subjectGroup->setLayout(new QVBoxLayout());
-        }
-        ui->subjectGroup->layout()->addWidget(subjectTable);
-        qDebug() << "科目表格已创建";
-    }
+    // 2. 趋势分析控件（有数据）
+    trendWidget = new QWidget();
+    QVBoxLayout *layout2 = new QVBoxLayout(trendWidget);
+    layout2->setAlignment(Qt::AlignTop);
+    layout2->setSpacing(10);
 
-    // 2. 班级对比表格
-    if (!classTable && ui->classGroup) {
-        classTable = new QTableWidget(this);
-        classTable->setColumnCount(5);
-        classTable->setHorizontalHeaderLabels(QStringList() << "班级" << "语文" << "数学" << "英语" << "总分");
-        classTable->verticalHeader()->setVisible(false);
-        classTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        classTable->setMinimumHeight(200);
-
-        if (!ui->classGroup->layout()) {
-            ui->classGroup->setLayout(new QVBoxLayout());
-        }
-        ui->classGroup->layout()->addWidget(classTable);
-        qDebug() << "班级表格已创建";
-    }
-
-    // 3. 成绩分布控件
-    if (!distributionWidget && ui->distributionGroup) {
-        distributionWidget = new QWidget(this);
-        distributionWidget->setLayout(new QVBoxLayout());
-        distributionWidget->setMinimumHeight(200);
-
-        if (!ui->distributionGroup->layout()) {
-            ui->distributionGroup->setLayout(new QVBoxLayout());
-        }
-        ui->distributionGroup->layout()->addWidget(distributionWidget);
-        qDebug() << "分布控件已创建";
-    }
-
-    // 4. 趋势分析控件
-    if (!trendWidget && ui->trendGroup) {
-        trendWidget = new QWidget(this);
-        trendWidget->setLayout(new QVBoxLayout());
-        trendWidget->setMinimumHeight(200);
-
-        if (!ui->trendGroup->layout()) {
-            ui->trendGroup->setLayout(new QVBoxLayout());
-        }
-        ui->trendGroup->layout()->addWidget(trendWidget);
-        qDebug() << "趋势控件已创建";
-    }
+    QVBoxLayout *groupLayout2 = new QVBoxLayout(ui->trendGroup);
+    groupLayout2->addWidget(trendWidget);
 }
 
 void StatisticsDialog::updateAllData()
 {
-    qDebug() << "正在从数据库更新所有数据...";
-
-    // 依次更新所有数据
-    updateSubjectData();
     updateClassData();
-    updateDistributionData();
     updateTrendData();
-    updateStatsPanel();
-}
-
-void StatisticsDialog::updateSubjectData()
-{
-    qDebug() << "正在更新科目数据...";
-
-    if (!subjectTable || !database) {
-        qDebug() << "错误：表格或数据库为空";
-        return;
-    }
-
-    try {
-        QString subject = ui->subjectCombo->currentText();
-        qDebug() << "获取科目统计：" << subject;
-
-        QVector<QMap<QString, QVariant>> stats = database->getSubjectStats(subject);
-        qDebug() << "从数据库获取到" << stats.size() << "条记录";
-
-        subjectTable->clear();
-        subjectTable->setRowCount(stats.size());
-        subjectTable->setColumnCount(4);
-        subjectTable->setHorizontalHeaderLabels(QStringList() << "班级" << "平均分" << "及格率" << "人数");
-
-        if (stats.isEmpty()) {
-            qDebug() << "数据库中没有数据";
-            // 显示空数据提示
-            subjectTable->setRowCount(1);
-            subjectTable->setItem(0, 0, new QTableWidgetItem("暂无数据"));
-        } else {
-            for (int i = 0; i < stats.size(); i++) {
-                const auto &stat = stats[i];
-
-                // 获取班级名称并简化（去掉"年级"）
-                QString className = stat["class"].toString();
-                className = simplifyClassName(className);  // 简化班级名称
-
-                QString avgScore = QString::number(stat["avg_score"].toDouble(), 'f', 1);
-                QString passRate = QString::number(stat["pass_rate"].toDouble(), 'f', 1) + "%";
-                QString count = stat["count"].toString();
-
-                subjectTable->setItem(i, 0, new QTableWidgetItem(className));
-                subjectTable->setItem(i, 1, new QTableWidgetItem(avgScore));
-                subjectTable->setItem(i, 2, new QTableWidgetItem(passRate));
-                subjectTable->setItem(i, 3, new QTableWidgetItem(count));
-
-                qDebug() << "  班级:" << className << "平均分:" << avgScore
-                         << "及格率:" << passRate << "人数:" << count;
-            }
-        }
-
-        subjectTable->resizeColumnsToContents();
-        qDebug() << "科目数据更新完成";
-
-    } catch (const std::exception &e) {
-        qDebug() << "更新科目数据时出错：" << e.what();
-        subjectTable->setRowCount(1);
-        subjectTable->setItem(0, 0, new QTableWidgetItem("数据加载失败"));
-    } catch (...) {
-        qDebug() << "更新科目数据时发生未知错误";
-    }
 }
 
 void StatisticsDialog::updateClassData()
 {
-    qDebug() << "正在更新班级对比数据...";
+    if (!classTable || !database) return;
 
-    if (!classTable || !database) {
-        qDebug() << "错误：表格或数据库为空";
-        return;
-    }
+    classTable->clearContents();
 
     try {
         QVector<QMap<QString, QVariant>> stats = database->getClassStats();
-        qDebug() << "从数据库获取到" << stats.size() << "条班级记录";
-
-        classTable->clear();
-        classTable->setRowCount(stats.size());
-        classTable->setColumnCount(5);
-        classTable->setHorizontalHeaderLabels(QStringList() << "班级" << "语文" << "数学" << "英语" << "总分");
 
         if (stats.isEmpty()) {
-            qDebug() << "数据库中没有班级数据";
             classTable->setRowCount(1);
-            classTable->setItem(0, 0, new QTableWidgetItem("暂无数据"));
-        } else {
-            for (int i = 0; i < stats.size(); i++) {
-                const auto &stat = stats[i];
-
-                // 获取并简化班级名称
-                QString className = stat["class"].toString();
-                className = simplifyClassName(className);
-
-                double chinese = stat["chinese_avg"].toDouble();
-                double math = stat["math_avg"].toDouble();
-                double english = stat["english_avg"].toDouble();
-                double total = chinese + math + english;
-
-                classTable->setItem(i, 0, new QTableWidgetItem(className));
-                classTable->setItem(i, 1, new QTableWidgetItem(QString::number(chinese, 'f', 1)));
-                classTable->setItem(i, 2, new QTableWidgetItem(QString::number(math, 'f', 1)));
-                classTable->setItem(i, 3, new QTableWidgetItem(QString::number(english, 'f', 1)));
-                classTable->setItem(i, 4, new QTableWidgetItem(QString::number(total, 'f', 1)));
-
-                qDebug() << "  班级:" << className << "语文:" << chinese
-                         << "数学:" << math << "英语:" << english << "总分:" << total;
-            }
-        }
-
-        classTable->resizeColumnsToContents();
-        qDebug() << "班级对比数据更新完成";
-
-    } catch (...) {
-        qDebug() << "更新班级数据时出错";
-        classTable->setRowCount(1);
-        classTable->setItem(0, 0, new QTableWidgetItem("数据加载失败"));
-    }
-}
-
-void StatisticsDialog::updateDistributionData()
-{
-    qDebug() << "正在更新成绩分布数据...";
-
-    if (!distributionWidget || !database) {
-        qDebug() << "错误：控件或数据库为空";
-        return;
-    }
-
-    try {
-        QString subject = ui->subjectCombo->currentText();
-        QVector<QMap<QString, QVariant>> distribution = database->getScoreDistribution(subject);
-        qDebug() << "从数据库获取到" << distribution.size() << "条分布记录";
-
-        // 清除旧内容
-        QLayout *layout = distributionWidget->layout();
-        if (layout) {
-            while (QLayoutItem* item = layout->takeAt(0)) {
-                if (item->widget()) {
-                    item->widget()->deleteLater();
-                }
-                delete item;
-            }
-        }
-
-        if (distribution.isEmpty()) {
-            QLabel *noDataLabel = new QLabel("暂无分布数据");
-            noDataLabel->setAlignment(Qt::AlignCenter);
-            noDataLabel->setStyleSheet("color: gray; font-size: 14px;");
-            layout->addWidget(noDataLabel);
-            qDebug() << "没有分布数据";
+            QTableWidgetItem *noDataItem = new QTableWidgetItem("暂无班级数据");
+            noDataItem->setTextAlignment(Qt::AlignCenter);
+            classTable->setItem(0, 0, noDataItem);
+            classTable->setSpan(0, 0, 1, 5);
             return;
         }
 
-        // 计算总人数
-        int totalCount = 0;
-        for (const auto &item : distribution) {
-            totalCount += item["count"].toInt();
-        }
-        qDebug() << "总人数:" << totalCount;
+        classTable->setRowCount(stats.size());
 
-        // 显示分布数据
-        for (const auto &item : distribution) {
-            QString range = item["range"].toString();
-            int count = item["count"].toInt();
+        for (int i = 0; i < stats.size(); i++) {
+            const auto &stat = stats[i];
 
-            if (count <= 0) continue;
+            QTableWidgetItem *classItem = new QTableWidgetItem(stat["class"].toString());
+            QTableWidgetItem *chineseItem = new QTableWidgetItem(QString::number(stat["chinese_avg"].toDouble(), 'f', 1));
+            QTableWidgetItem *mathItem = new QTableWidgetItem(QString::number(stat["math_avg"].toDouble(), 'f', 1));
+            QTableWidgetItem *englishItem = new QTableWidgetItem(QString::number(stat["english_avg"].toDouble(), 'f', 1));
 
-            double percentage = totalCount > 0 ? (count * 100.0 / totalCount) : 0;
+            // 计算总分
+            double total = stat["chinese_avg"].toDouble() +
+                           stat["math_avg"].toDouble() +
+                           stat["english_avg"].toDouble();
+            QTableWidgetItem *totalItem = new QTableWidgetItem(QString::number(total, 'f', 1));
 
-            QWidget *row = new QWidget();
-            QHBoxLayout *rowLayout = new QHBoxLayout(row);
-            rowLayout->setContentsMargins(5, 2, 5, 2);
-
-            QLabel *label = new QLabel(range + "分:");
-            label->setMinimumWidth(60);
-
-            QProgressBar *bar = new QProgressBar();
-            bar->setRange(0, 100);
-            bar->setValue(percentage);
-            bar->setFormat(QString("%1人 (%2%)").arg(count).arg(percentage, 0, 'f', 1));
-            bar->setMinimumHeight(25);
-
-            // 根据分数段设置不同颜色
-            if (range.startsWith("90") || range.startsWith("80")) {
-                bar->setStyleSheet("QProgressBar::chunk { background-color: #4CAF50; }"); // 绿色
-            } else if (range.startsWith("70") || range.startsWith("60")) {
-                bar->setStyleSheet("QProgressBar::chunk { background-color: #FF9800; }"); // 橙色
-            } else {
-                bar->setStyleSheet("QProgressBar::chunk { background-color: #F44336; }"); // 红色
+            // 设置颜色
+            if (total >= 240) {
+                classItem->setBackground(QColor(220, 255, 220));
+                chineseItem->setBackground(QColor(220, 255, 220));
+                mathItem->setBackground(QColor(220, 255, 220));
+                englishItem->setBackground(QColor(220, 255, 220));
+                totalItem->setBackground(QColor(220, 255, 220));
+            } else if (total < 180) {
+                classItem->setBackground(QColor(255, 220, 220));
+                chineseItem->setBackground(QColor(255, 220, 220));
+                mathItem->setBackground(QColor(255, 220, 220));
+                englishItem->setBackground(QColor(255, 220, 220));
+                totalItem->setBackground(QColor(255, 220, 220));
             }
 
-            rowLayout->addWidget(label);
-            rowLayout->addWidget(bar);
-            layout->addWidget(row);
-
-            qDebug() << "  分数段:" << range << "人数:" << count << "百分比:" << percentage << "%";
+            classTable->setItem(i, 0, classItem);
+            classTable->setItem(i, 1, chineseItem);
+            classTable->setItem(i, 2, mathItem);
+            classTable->setItem(i, 3, englishItem);
+            classTable->setItem(i, 4, totalItem);
         }
 
-        qDebug() << "成绩分布数据更新完成";
+        classTable->resizeColumnsToContents();
 
     } catch (...) {
-        qDebug() << "更新分布数据时出错";
-        QLabel *errorLabel = new QLabel("数据加载失败");
-        errorLabel->setAlignment(Qt::AlignCenter);
-        errorLabel->setStyleSheet("color: red; font-size: 14px;");
-        distributionWidget->layout()->addWidget(errorLabel);
+        qDebug() << "updateClassData 出错";
     }
 }
 
 void StatisticsDialog::updateTrendData()
 {
-    qDebug() << "正在更新趋势数据...";
+    if (!trendWidget || !database) return;
 
-    if (!trendWidget || !database) {
-        qDebug() << "错误：控件或数据库为空";
-        return;
+    // 清除旧内容
+    QLayoutItem *item;
+    while ((item = trendWidget->layout()->takeAt(0)) != nullptr) {
+        if (item->widget()) {
+            delete item->widget();
+        }
+        delete item;
     }
 
     try {
         QVector<QMap<QString, QVariant>> trendData = database->getTrendData();
-        qDebug() << "从数据库获取到" << trendData.size() << "条趋势记录";
-
-        // 清除旧内容
-        QLayout *layout = trendWidget->layout();
-        if (layout) {
-            while (QLayoutItem* item = layout->takeAt(0)) {
-                if (item->widget()) {
-                    item->widget()->deleteLater();
-                }
-                delete item;
-            }
-        }
 
         if (trendData.isEmpty()) {
             QLabel *noDataLabel = new QLabel("暂无趋势数据");
             noDataLabel->setAlignment(Qt::AlignCenter);
-            noDataLabel->setStyleSheet("color: gray; font-size: 14px;");
-            layout->addWidget(noDataLabel);
-            qDebug() << "没有趋势数据";
+            noDataLabel->setStyleSheet("font-size: 14pt; color: gray;");
+            trendWidget->layout()->addWidget(noDataLabel);
             return;
         }
 
-        QLabel *title = new QLabel("各班级平均分趋势");
-        title->setStyleSheet("font-weight: bold; font-size: 14px; margin-bottom: 10px;");
-        title->setAlignment(Qt::AlignCenter);
-        layout->addWidget(title);
+        // 创建标题
+        QLabel *titleLabel = new QLabel("各班级平均分排名");
+        titleLabel->setStyleSheet("font-weight: bold; font-size: 14pt; margin-bottom: 15px;");
+        titleLabel->setAlignment(Qt::AlignCenter);
+        trendWidget->layout()->addWidget(titleLabel);
 
         // 按总分排序
-        QList<QPair<double, QMap<QString, QVariant>>> sortedData;
-        for (const auto &data : trendData) {
-            double chinese = data["chinese"].toDouble();
-            double math = data["math"].toDouble();
-            double english = data["english"].toDouble();
-            double total = chinese + math + english;
-            sortedData.append(qMakePair(total, data));
-        }
-
-        // 降序排序
-        std::sort(sortedData.begin(), sortedData.end(),
-                  [](const QPair<double, QMap<QString, QVariant>> &a,
-                     const QPair<double, QMap<QString, QVariant>> &b) {
-                      return a.first > b.first;
+        std::sort(trendData.begin(), trendData.end(),
+                  [](const QMap<QString, QVariant> &a, const QMap<QString, QVariant> &b) {
+                      double totalA = a["chinese"].toDouble() + a["math"].toDouble() + a["english"].toDouble();
+                      double totalB = b["chinese"].toDouble() + b["math"].toDouble() + b["english"].toDouble();
+                      return totalA > totalB;
                   });
 
-        for (int i = 0; i < sortedData.size(); i++) {
-            const auto &data = sortedData[i].second;
-            QString className = simplifyClassName(data["class"].toString());
+        // 显示每个班级的数据
+        for (int i = 0; i < trendData.size(); i++) {
+            const auto &data = trendData[i];
+            QString className = data["class"].toString();
             double chinese = data["chinese"].toDouble();
             double math = data["math"].toDouble();
             double english = data["english"].toDouble();
             double total = chinese + math + english;
 
-            QString trendText = QString("%1. %2 - 语文: %3 | 数学: %4 | 英语: %5 | 总分: %6")
-                                    .arg(i + 1)
-                                    .arg(className)
-                                    .arg(chinese, 0, 'f', 1)
-                                    .arg(math, 0, 'f', 1)
-                                    .arg(english, 0, 'f', 1)
-                                    .arg(total, 0, 'f', 1);
+            QWidget *rowWidget = new QWidget();
+            QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+            rowLayout->setContentsMargins(10, 5, 10, 5);
 
-            QLabel *label = new QLabel(trendText);
-            label->setMargin(5);
+            // 排名标签
+            QLabel *rankLabel = new QLabel(QString("%1.").arg(i + 1));
+            rankLabel->setFixedWidth(40);
+            rankLabel->setAlignment(Qt::AlignCenter);
 
-            // 为前三名设置不同颜色
+            // 班级名称
+            QLabel *classLabel = new QLabel(className);
+            classLabel->setFixedWidth(100);
+
+            // 成绩信息
+            QString scores = QString("语文:%1 数学:%2 英语:%3")
+                                 .arg(chinese, 0, 'f', 1)
+                                 .arg(math, 0, 'f', 1)
+                                 .arg(english, 0, 'f', 1);
+            QLabel *scoreLabel = new QLabel(scores);
+            scoreLabel->setMinimumWidth(200);
+
+            // 总分
+            QLabel *totalLabel = new QLabel(QString("总分:%1").arg(total, 0, 'f', 1));
+            totalLabel->setFixedWidth(100);
+            totalLabel->setAlignment(Qt::AlignRight);
+
+            // 设置样式
+            QString style = "font-size: 11pt; padding: 5px;";
             if (i == 0) {
-                label->setStyleSheet("color: #FFD700; font-weight: bold;"); // 金色
+                style += "font-weight: bold; color: #d48806; background: #fffbe6; border: 1px solid #ffd591; border-radius: 4px;";
             } else if (i == 1) {
-                label->setStyleSheet("color: #C0C0C0; font-weight: bold;"); // 银色
+                style += "color: #595959; background: #fafafa; border: 1px solid #d9d9d9; border-radius: 4px;";
             } else if (i == 2) {
-                label->setStyleSheet("color: #CD7F32; font-weight: bold;"); // 铜色
+                style += "color: #8c8c8c; background: #f5f5f5; border: 1px solid #d9d9d9; border-radius: 4px;";
+            } else {
+                style += "color: #8c8c8c;";
             }
 
-            layout->addWidget(label);
-            qDebug() << "  趋势:" << trendText;
+            rankLabel->setStyleSheet(style);
+            classLabel->setStyleSheet(style);
+            scoreLabel->setStyleSheet(style);
+            totalLabel->setStyleSheet(style);
+
+            rowLayout->addWidget(rankLabel);
+            rowLayout->addWidget(classLabel);
+            rowLayout->addWidget(scoreLabel);
+            rowLayout->addWidget(totalLabel);
+            rowLayout->addStretch();
+
+            trendWidget->layout()->addWidget(rowWidget);
         }
 
-        qDebug() << "趋势数据更新完成";
+        // 添加说明
+        QLabel *noteLabel = new QLabel("说明：按班级总分平均分排名，绿色表示优秀(≥240)，红色表示需关注(<180)");
+        noteLabel->setStyleSheet("font-size: 10pt; color: #666; margin-top: 20px; padding: 5px;");
+        noteLabel->setAlignment(Qt::AlignCenter);
+        trendWidget->layout()->addWidget(noteLabel);
 
     } catch (...) {
-        qDebug() << "更新趋势数据时出错";
-        QLabel *errorLabel = new QLabel("数据加载失败");
-        errorLabel->setAlignment(Qt::AlignCenter);
-        errorLabel->setStyleSheet("color: red; font-size: 14px;");
-        trendWidget->layout()->addWidget(errorLabel);
+        qDebug() << "updateTrendData 出错";
     }
 }
 
 void StatisticsDialog::updateClassList()
 {
-    qDebug() << "正在更新班级列表...";
-
-    if (!database) {
-        qDebug() << "错误：数据库为空";
-        return;
-    }
-
     try {
-        ui->classList->clear();
-        ui->classList->addItem("全部");
-
-        QStringList classes = database->getAllClasses();
-        qDebug() << "从数据库获取到" << classes.size() << "个班级";
-
-        for (const QString &className : classes) {
-            QString simpleName = simplifyClassName(className);
-            ui->classList->addItem(simpleName);
-            qDebug() << "  添加班级:" << simpleName << "(原名称:" << className << ")";
-        }
-
-        ui->classList->setCurrentRow(0);
-        qDebug() << "班级列表更新完成";
+        // 检查UI中是否有classList控件
+        // 如果没有这个控件，就跳过这个函数
+        // qDebug() << "updateClassList被调用，但UI中可能没有classList控件";
 
     } catch (...) {
-        qDebug() << "更新班级列表时出错";
-        ui->classList->clear();
-        ui->classList->addItem("全部");
+        qDebug() << "updateClassList 出错";
     }
-}
-
-void StatisticsDialog::on_subjectCombo_currentIndexChanged(int index)
-{
-    Q_UNUSED(index);
-    qDebug() << "科目已更改，重新加载数据...";
-    updateAllData();
 }
 
 void StatisticsDialog::on_classList_currentTextChanged(const QString &currentText)
 {
-    qDebug() << "班级选择已更改为:" << currentText;
-    updateStatsPanel(currentText);
-}
-
-void StatisticsDialog::updateStatsPanel(const QString &className)
-{
-    qDebug() << "正在更新统计指标...";
-
-    if (!database) {
-        qDebug() << "错误：数据库为空";
-        return;
-    }
-
-    try {
-        QString subject = ui->subjectCombo->currentText();
-        QString selectedClass = (className == "全部" || className.isEmpty()) ? "" : className;
-
-        // 先获取该科目的所有统计数据
-        QVector<QMap<QString, QVariant>> allStats = database->getSubjectStats(subject);
-
-        if (allStats.isEmpty()) {
-            ui->avgValue->setText("0.0");
-            ui->maxValue->setText("0");
-            ui->minValue->setText("0");
-            ui->passValue->setText("0%");
-            ui->countValue->setText("0");
-            qDebug() << "没有统计数据";
-            return;
-        }
-
-        if (selectedClass.isEmpty()) {
-            // 计算全部班级的统计指标
-            double totalAvg = 0;
-            double totalMax = 0;
-            double totalMin = 100;
-            int totalCount = 0;
-            int totalPassCount = 0;
-
-            for (const auto &stat : allStats) {
-                double avgScore = stat["avg_score"].toDouble();
-                double maxScore = stat["max_score"].toDouble();
-                double minScore = stat["min_score"].toDouble();
-                int count = stat["count"].toInt();
-                double passRate = stat["pass_rate"].toDouble();
-
-                totalAvg += avgScore * count;
-                totalMax = qMax(totalMax, maxScore);
-                totalMin = qMin(totalMin, minScore);
-                totalCount += count;
-                totalPassCount += qRound(passRate * count / 100.0);
-            }
-
-            double finalAvg = totalCount > 0 ? totalAvg / totalCount : 0;
-            double finalPassRate = totalCount > 0 ? (totalPassCount * 100.0 / totalCount) : 0;
-
-            ui->avgValue->setText(QString::number(finalAvg, 'f', 1));
-            ui->maxValue->setText(QString::number(totalMax, 'f', 1));
-            ui->minValue->setText(QString::number(totalMin, 'f', 1));
-            ui->passValue->setText(QString::number(finalPassRate, 'f', 1) + "%");
-            ui->countValue->setText(QString::number(totalCount));
-
-            qDebug() << "全部班级统计 - 平均分:" << finalAvg << "最高分:" << totalMax
-                     << "最低分:" << totalMin << "及格率:" << finalPassRate << "% 人数:" << totalCount;
-
-        } else {
-            // 查找指定班级的统计数据
-            bool found = false;
-            for (const auto &stat : allStats) {
-                QString originalClassName = stat["class"].toString();
-                QString simpleName = simplifyClassName(originalClassName);
-
-                if (simpleName == selectedClass) {
-                    ui->avgValue->setText(QString::number(stat["avg_score"].toDouble(), 'f', 1));
-                    ui->maxValue->setText(QString::number(stat["max_score"].toDouble(), 'f', 1));
-                    ui->minValue->setText(QString::number(stat["min_score"].toDouble(), 'f', 1));
-                    ui->passValue->setText(QString::number(stat["pass_rate"].toDouble(), 'f', 1) + "%");
-                    ui->countValue->setText(stat["count"].toString());
-                    found = true;
-
-                    qDebug() << "班级" << selectedClass << "统计 - 平均分:" << stat["avg_score"].toDouble()
-                             << "最高分:" << stat["max_score"].toDouble() << "最低分:" << stat["min_score"].toDouble()
-                             << "及格率:" << stat["pass_rate"].toDouble() << "% 人数:" << stat["count"].toInt();
-                    break;
-                }
-            }
-
-            if (!found) {
-                ui->avgValue->setText("0.0");
-                ui->maxValue->setText("0");
-                ui->minValue->setText("0");
-                ui->passValue->setText("0%");
-                ui->countValue->setText("0");
-                qDebug() << "未找到班级:" << selectedClass;
-            }
-        }
-
-    } catch (...) {
-        qDebug() << "更新统计指标时出错";
-        ui->avgValue->setText("0.0");
-        ui->maxValue->setText("0");
-        ui->minValue->setText("0");
-        ui->passValue->setText("0%");
-        ui->countValue->setText("0");
-    }
-}
-
-// 新增函数：简化班级名称（去掉"年级"）
-QString StatisticsDialog::simplifyClassName(const QString &className)
-{
-    QString result = className;
-    // 去掉"年级"字样
-    result = result.replace("一年级", "一").replace("二年级", "二")
-                 .replace("三年级", "三").replace("四年级", "四")
-                 .replace("五年级", "五").replace("六年级", "六")
-                 .replace("年级", "");
-
-    // 如果只有数字，加上"班"
-    if (result.toInt() > 0) {
-        result = result + "班";
-    }
-
-    return result;
+    Q_UNUSED(currentText);
+    // 暂时不处理班级选择变化
 }

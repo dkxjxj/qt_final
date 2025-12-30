@@ -2,9 +2,8 @@
 #define STATISTICSDIALOG_H
 
 #include <QDialog>
-#include "database.h"
 #include <QTableWidget>
-#include <QWidget>
+#include "database.h"
 
 namespace Ui {
 class StatisticsDialog;
@@ -19,28 +18,20 @@ public:
     ~StatisticsDialog();
 
 private slots:
-    void on_subjectCombo_currentIndexChanged(int index);
     void on_classList_currentTextChanged(const QString &currentText);
 
 private:
-    void initializeWidgets();
+    void setupWidgets();
     void updateAllData();
-    void updateClassList();
-    void updateStatsPanel(const QString &className = "");
-    void updateSubjectData();
     void updateClassData();
-    void updateDistributionData();
     void updateTrendData();
-
-    // 新增函数：简化班级名称
-    QString simplifyClassName(const QString &className);
+    void updateClassList();
 
     Ui::StatisticsDialog *ui;
     Database *database;
-    QTableWidget *subjectTable;
-    QTableWidget *classTable;
-    QWidget *distributionWidget;
-    QWidget *trendWidget;
+
+    QTableWidget *classTable;  // 保持与UI一致
+    QWidget *trendWidget;      // 保持与UI一致
 };
 
 #endif // STATISTICSDIALOG_H

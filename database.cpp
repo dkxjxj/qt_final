@@ -17,18 +17,9 @@ Database::~Database()
 
 bool Database::openDatabase()
 {
-    // ================ 重要：修改这里的路径 ================
-    // 替换成你在Navicat中创建的数据库文件完整路径
-    // 注意Windows路径要用双斜杠或正斜杠
 
-    // 示例1：绝对路径（推荐）
     QString dbPath = "D:/StudentData/student_grade.db";
-    // 或 QString dbPath = "D:\\StudentData\\student_grade.db";
 
-    // 示例2：如果放在项目文件夹内
-    // QString dbPath = QCoreApplication::applicationDirPath() + "/student_grade.db";
-
-    // 打印路径，方便调试
     qDebug() << "数据库路径：" << dbPath;
 
     // ================ 验证文件是否存在 ================
@@ -203,13 +194,14 @@ QVector<QMap<QString, QVariant>> Database::getSubjectStats(const QString &subjec
     QVector<QMap<QString, QVariant>> stats;
     QSqlQuery query;
 
+    // 修正：简化查询，移除 WHERE %1 >= 0 条件
     QString sql = QString("SELECT class, "
                           "COUNT(*) as count, "
                           "AVG(%1) as avg_score, "
                           "MAX(%1) as max_score, "
                           "MIN(%1) as min_score, "
-                          "SUM(CASE WHEN %1 >= 60 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as pass_rate "
-                          "FROM students WHERE %1 >= 0 GROUP BY class").arg(subject);
+                          "SUM(CASE WHEN %1 >= 60 AND %1 >= 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*) as pass_rate "
+                          "FROM students GROUP BY class").arg(subject);
 
     if (query.exec(sql)) {
         while (query.next()) {
@@ -269,6 +261,7 @@ QVector<QMap<QString, QVariant>> Database::getScoreDistribution(const QString &s
         int max = parts[1].toInt();
 
         QSqlQuery query;
+        // 修正：移除 WHERE 条件中的 %1 >= 0
         query.prepare(QString("SELECT COUNT(*) as count FROM students "
                               "WHERE %1 >= ? AND %1 <= ?").arg(subject));
         query.addBindValue(min);
@@ -291,12 +284,12 @@ QVector<QMap<QString, QVariant>> Database::getTrendData()
     QSqlQuery query;
 
     // 获取各班级平均分趋势
+    // 修正：移除 WHERE 条件
     QString sql = "SELECT class, "
                   "AVG(chinese) as chinese, "
                   "AVG(math) as math, "
                   "AVG(english) as english "
                   "FROM students "
-                  "WHERE chinese >= 0 AND math >= 0 AND english >= 0 "
                   "GROUP BY class "
                   "ORDER BY class";
 
@@ -338,5 +331,3 @@ bool Database::isStudentExist(const QString &stuId)
 
     return false;
 }
-
-

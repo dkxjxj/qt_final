@@ -1,5 +1,5 @@
-QT += core gui sql  # 去掉 charts
-# 或者保留但注释掉：QT += core gui sql # charts
+QT += core gui sql
+# 去掉 charts，因为我们不使用图表模块
 
 greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 

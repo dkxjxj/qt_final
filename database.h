@@ -39,7 +39,6 @@ public:
     QStringList getAllClasses();
     bool isStudentExist(const QString &stuId);
 
-
 private:
     QSqlDatabase db;
 };
