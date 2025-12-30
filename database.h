@@ -33,6 +33,8 @@ public:
 
     QVector<QMap<QString, QVariant>> getAllStudents();
     QVector<QMap<QString, QVariant>> searchStudents(const QString &keyword);
+    // 在public部分添加
+    QVector<QMap<QString, QVariant>> searchStudents(const QString &keyword);
 private:
     QSqlDatabase db;
 };

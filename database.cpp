@@ -87,3 +87,48 @@ QVector<QMap<QString, QVariant>> Database::getAllStudents()
     qDebug() << "查询到" << students.size() << "名学生";
     return students;
 }
+
+QVector<QMap<QString, QVariant>> Database::searchStudents(const QString &keyword)
+{
+    QVector<QMap<QString, QVariant>> students;
+
+    if (!db.isOpen()) {
+        qDebug() << "数据库未打开";
+        return students;
+    }
+
+    QSqlQuery query;
+    QString sql = "SELECT * FROM students WHERE stu_id LIKE ? OR name LIKE ? OR class LIKE ? "
+                  "ORDER BY class, stu_id";
+
+    if (!query.prepare(sql)) {
+        qDebug() << "准备查询失败:" << query.lastError().text();
+        return students;
+    }
+
+    QString pattern = "%" + keyword + "%";
+    query.addBindValue(pattern);
+    query.addBindValue(pattern);
+    query.addBindValue(pattern);
+
+    if (!query.exec()) {
+        qDebug() << "执行查询失败:" << query.lastError().text();
+        return students;
+    }
+
+    while (query.next()) {
+        QMap<QString, QVariant> student;
+        student["id"] = query.value("id");
+        student["stu_id"] = query.value("stu_id");
+        student["name"] = query.value("name");
+        student["class"] = query.value("class");
+        student["chinese"] = query.value("chinese");
+        student["math"] = query.value("math");
+        student["english"] = query.value("english");
+        student["total"] = query.value("total");
+        students.append(student);
+    }
+
+    qDebug() << "搜索到" << students.size() << "名学生";
+    return students;
+}
