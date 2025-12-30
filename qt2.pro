@@ -5,23 +5,24 @@ greaterThan(QT_MAJOR_VERSION, 5): QT += widgets
 CONFIG += c++17  # Qt 6需要C++17
 
 SOURCES += \
-    addstudentdialog.cpp \
-    database.cpp \
     main.cpp \
     mainwindow.cpp \
-    studentmodel.cpp
-
+    database.cpp \
+    studentmodel.cpp \
+    addstudentdialog.cpp \
+    statisticsdialog.cpp
 
 HEADERS += \
-    addstudentdialog.h \
-    database.h \
     mainwindow.h \
-    studentmodel.h
-
+    database.h \
+    studentmodel.h \
+    addstudentdialog.h \
+    statisticsdialog.h
 
 FORMS += \
-    addstudentdialog.ui \
     mainwindow.ui \
+    addstudentdialog.ui \
+    statisticsdialog.ui
 
 # Release模式配置
 CONFIG(release, debug|release) {

@@ -17,30 +17,30 @@ public:
     explicit Database(QObject *parent = nullptr);
     ~Database();
 
-    // 只声明，不实现
     bool openDatabase();
     bool createTables();
 
+    // 学生信息操作
     bool addStudent(const QString &stuId, const QString &name, const QString &className,
                     double chinese, double math, double english);
-
-    // 添加更新学生方法
     bool updateStudent(const QString &stuId, const QString &name, const QString &className,
                        double chinese, double math, double english);
-
     bool deleteStudent(const QString &stuId);
-    bool isStudentExist(const QString &stuId);
-    bool deleteStudent(const QString &stuId);
-    bool isStudentExist(const QString &stuId);
-
-
     QVector<QMap<QString, QVariant>> getAllStudents();
     QVector<QMap<QString, QVariant>> searchStudents(const QString &keyword);
-    // 在public部分添加
-    QVector<QMap<QString, QVariant>> searchStudents(const QString &keyword);
+
+    // 统计函数
+    QVector<QMap<QString, QVariant>> getSubjectStats(const QString &subject);
+    QVector<QMap<QString, QVariant>> getClassStats();
+    QVector<QMap<QString, QVariant>> getScoreDistribution(const QString &subject);
+    QVector<QMap<QString, QVariant>> getTrendData();
+
+    // 工具函数
+    QStringList getAllClasses();
+    bool isStudentExist(const QString &stuId);
+
 private:
     QSqlDatabase db;
 };
 
 #endif // DATABASE_H
-

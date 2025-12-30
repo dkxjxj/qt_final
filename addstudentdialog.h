@@ -17,8 +17,8 @@ public:
     ~AddStudentDialog();
 
 private slots:
-    void on_addButton_clicked();
-    void on_cancelButton_clicked();
+    void on_buttonBox_accepted();    // 修改：从 on_addButton_clicked 改为 on_buttonBox_accepted
+    void on_buttonBox_rejected();    // 修改：从 on_cancelButton_clicked 改为 on_buttonBox_rejected
 
 private:
     bool validateInput();

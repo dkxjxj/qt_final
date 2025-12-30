@@ -5,8 +5,8 @@
 StudentModel::StudentModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
-    // 设置表头 - 包含成绩字段
-    headers << "学号" << "姓名" << "班级" << "语文" << "数学" << "英语" << "总分";
+    // 设置表头
+    headers << "学号" << "姓名" << "班级" << "语文" << "数学" << "英语" << "总分" << "平均分";
 }
 
 int StudentModel::rowCount(const QModelIndex &parent) const
@@ -28,28 +28,16 @@ QVariant StudentModel::data(const QModelIndex &index, int role) const
 
     const QMap<QString, QVariant> &student = studentList.at(index.row());
 
-    if (role == Qt::DisplayRole) {
+    if (role == Qt::DisplayRole || role == Qt::EditRole) {
         switch (index.column()) {
         case 0: return student["stu_id"];
         case 1: return student["name"];
         case 2: return student["class"];
-        case 3: return student["chinese"].isNull() ? "未录入" : student["chinese"];
-        case 4: return student["math"].isNull() ? "未录入" : student["math"];
-        case 5: return student["english"].isNull() ? "未录入" : student["english"];
+        case 3: return student["chinese"].isNull() ? QVariant() : student["chinese"];
+        case 4: return student["math"].isNull() ? QVariant() : student["math"];
+        case 5: return student["english"].isNull() ? QVariant() : student["english"];
         case 6: return student["total"];
-        default: return QVariant();
-        }
-    }
-    else if (role == Qt::EditRole) {
-        // 编辑模式下返回原始数据
-        switch (index.column()) {
-        case 0: return student["stu_id"];
-        case 1: return student["name"];
-        case 2: return student["class"];
-        case 3: return student["chinese"];
-        case 4: return student["math"];
-        case 5: return student["english"];
-        case 6: return student["total"];
+        case 7: return student["average"];
         default: return QVariant();
         }
     }
@@ -57,18 +45,14 @@ QVariant StudentModel::data(const QModelIndex &index, int role) const
         return Qt::AlignCenter;
     }
     else if (role == Qt::ForegroundRole) {
-        // 成绩颜色标记（不及格显示红色，优秀显示绿色）
+        // 成绩颜色标记
         if (index.column() >= 3 && index.column() <= 5) {
             QVariant score = student[headers[index.column()].toLower()];
             if (!score.isNull()) {
                 double value = score.toDouble();
-                if (value >= 90) {
-                    return QBrush(QColor(0, 128, 0));    // 绿色 - 优秀
-                } else if (value >= 60) {
-                    return QBrush(QColor(0, 0, 0));      // 黑色 - 及格
-                } else {
-                    return QBrush(QColor(255, 0, 0));    // 红色 - 不及格
-                }
+                if (value >= 90) return QBrush(QColor(0, 128, 0));    // 绿色 - 优秀
+                else if (value >= 60) return QBrush(QColor(0, 0, 0)); // 黑色 - 及格
+                else return QBrush(QColor(255, 0, 0));                // 红色 - 不及格
             }
         }
     }
